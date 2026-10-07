@@ -1,32 +1,143 @@
 const API="https://story-me-me-fd43.vercel.app";
-let token="", providers=[], selected="";
+let token="", providers=[], selected="", busy=false;
+
 const $=id=>document.getElementById(id);
-async function api(path,opts){
-  const r=await fetch(API+path,{...opts,headers:{Authorization:"Bearer "+token,"Content-Type":"application/json"}});
+
+function flash(button){
+  if(!button)return;
+  button.classList.remove("clicked");
+  void button.offsetWidth;
+  button.classList.add("clicked");
+  setTimeout(()=>button.classList.remove("clicked"),500);
+}
+function setBusy(value){
+  busy=value;
+  document.querySelectorAll("button").forEach(b=>b.disabled=value && !b.classList.contains("provider"));
+}
+function message(text,error=false){
+  $("msg").textContent=text||"";
+  $("msg").className=error?"error":"muted";
+}
+async function api(path,opts={}){
+  const r=await fetch(API+path,{...opts,headers:{...(opts.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
   const d=await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error||"Request failed");
+  if(!r.ok) throw new Error(d.error||("Request failed ("+r.status+")"));
   return d;
 }
 async function load(){
+  flash($("loginBtn"));
+  token=$("token").value.trim();
+  if(!token){$("loginMsg").textContent="Enter your admin token.";return}
+  $("loginBtn").textContent="Connecting…";
+  $("loginMsg").textContent="";
   try{
     const d=await api("/api/admin/ai/providers",{});
     providers=d.providers||[];
-    $("login").hidden=true;$("app").hidden=false;
+    $("login").hidden=true;
+    $("app").hidden=false;
+    if(d.warnings?.length) message(d.warnings.join(" "));
     render();
-  }catch(e){$("loginMsg").textContent=e.message}
+  }catch(e){
+    $("loginMsg").textContent=e.message;
+  }finally{
+    $("loginBtn").textContent="Enter Admin";
+  }
+}
+function selectProvider(id,button){
+  flash(button);
+  selected=id;
+  message("");
+  render();
 }
 function render(){
-  $("providers").innerHTML=providers.map(p=>'<button class="provider '+(p.id===selected?"selected":"")+'" onclick="selectProvider(\''+p.id+'\')"><b>'+p.name+'</b><span>'+p.keyCount+' active keys · '+p.models.length+' models</span></button>').join("");
+  $("providers").innerHTML=providers.length?providers.map(p=>'<button class="provider '+(p.id===selected?"selected":"")+'" data-provider="'+p.id+'"><b>'+escapeHtml(p.name)+'</b><span>'+p.keyCount+' active keys · '+p.models.length+' models</span></button>').join(""):"<p class='muted'>No providers configured.</p>";
+  document.querySelectorAll("[data-provider]").forEach(b=>b.onclick=()=>selectProvider(b.dataset.provider,b));
   if(!selected&&providers[0])selected=providers[0].id;
   const p=providers.find(x=>x.id===selected);
   if(!p)return;
-  $("providerPanel").hidden=false;$("providerTitle").textContent=p.name;
-  $("keys").innerHTML=p.keys.map(k=>'<div class="keyrow"><div><b>'+k.label+'</b><div class="pill">ID '+k.id.slice(0,8)+'… · priority '+k.priority+'</div></div></div>').join("")||"<p class='muted'>No active keys.</p>";
-  $("models").innerHTML=p.models.map(m=>"<span>"+m+"</span>").join("")||"<span>No models configured.</span>";
+  $("providerPanel").hidden=false;
+  $("providerTitle").textContent=p.name;
+  $("keys").innerHTML=p.keys?.length?p.keys.map(k=>'<div class="keyrow"><div><b>'+escapeHtml(k.label||"Admin key")+'</b><div class="pill">ID '+k.id.slice(0,8)+'… · priority '+k.priority+'</div></div><div class="row"><button class="ghost update-key" data-id="'+k.id+'">Update</button><button class="danger disable-key" data-id="'+k.id+'">Disable</button></div></div>').join(""):"<p class='muted'>No active keys.</p>";
+  document.querySelectorAll(".update-key").forEach(b=>b.onclick=()=>updateKey(b.dataset.id,b));
+  document.querySelectorAll(".disable-key").forEach(b=>b.onclick=()=>removeKey(b.dataset.id,b));
+  $("models").innerHTML=p.models?.length?p.models.map(m=>"<span>"+escapeHtml(m)+"</span>").join(""):"<span>No models configured.</span>";
 }
-window.selectProvider=id=>{selected=id;render()};
-$("loginBtn").onclick=()=>{token=$("token").value.trim();if(token)load()};
-$("token").onkeydown=e=>{if(e.key==="Enter")$("loginBtn").click()};
-$("lockBtn").onclick=()=>{location.reload()};
-$("addKey").onclick=async()=>{const v=$("newKey").value.trim();if(!v)return;try{await api("/api/admin/ai/keys",{method:"POST",body:JSON.stringify({provider:selected,apiKey:v,label:"Admin key",priority:100})});$("newKey").value="";await load()}catch(e){$("msg").textContent=e.message}};
-$("addModel").onclick=async()=>{const v=$("newModel").value.trim();if(!v)return;try{await api("/api/admin/ai/models",{method:"POST",body:JSON.stringify({provider:selected,model:v})});$("newModel").value="";await load()}catch(e){$("msg").textContent=e.message}};
+function escapeHtml(value){
+  return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+async function addKey(button){
+  flash(button);
+  const v=$("newKey").value.trim();
+  if(!selected){message("Select a provider first.",true);return}
+  if(!v){message("Enter an API key first.",true);return}
+  button.textContent="Saving…";
+  setBusy(true);
+  try{
+    await api("/api/admin/ai/keys",{method:"POST",body:JSON.stringify({provider:selected,apiKey:v,label:"Admin key",priority:100})});
+    $("newKey").value="";
+    await refreshProviders();
+    message("API key saved securely.");
+  }catch(e){message(e.message,true)}
+  finally{button.textContent="Add";setBusy(false)}
+}
+async function updateKey(id,button){
+  flash(button);
+  const value=prompt("Enter the replacement API key:");
+  if(!value?.trim())return;
+  button.textContent="Saving…";
+  setBusy(true);
+  try{
+    await api("/api/admin/ai/keys",{method:"PUT",body:JSON.stringify({id,apiKey:value.trim(),label:"Admin key",priority:100})});
+    await refreshProviders();
+    message("API key updated.");
+  }catch(e){message(e.message,true)}
+  finally{setBusy(false)}
+}
+async function removeKey(id,button){
+  flash(button);
+  if(!confirm("Disable this API key?"))return;
+  button.textContent="Disabling…";
+  setBusy(true);
+  try{
+    await api("/api/admin/ai/keys",{method:"DELETE",body:JSON.stringify({id})});
+    await refreshProviders();
+    message("API key disabled.");
+  }catch(e){message(e.message,true)}
+  finally{setBusy(false)}
+}
+async function addModel(button){
+  flash(button);
+  const v=$("newModel").value.trim();
+  if(!selected){message("Select a provider first.",true);return}
+  if(!v){message("Enter a model ID first.",true);return}
+  button.textContent="Saving…";
+  setBusy(true);
+  try{
+    await api("/api/admin/ai/models",{method:"POST",body:JSON.stringify({provider:selected,model:v})});
+    $("newModel").value="";
+    await refreshProviders();
+    message("Model saved.");
+  }catch(e){message(e.message,true)}
+  finally{button.textContent="Save";setBusy(false)}
+}
+async function refreshProviders(){
+  const d=await api("/api/admin/ai/providers",{});
+  providers=d.providers||[];
+  if(d.warnings?.length)message(d.warnings.join(" "));
+  render();
+}
+function lock(button){
+  flash(button);
+  token="";
+  providers=[];
+  selected="";
+  $("token").value="";
+  $("app").hidden=true;
+  $("login").hidden=false;
+  message("");
+}
+$("loginBtn").onclick=load;
+$("token").onkeydown=e=>{if(e.key==="Enter")load()};
+$("lockBtn").onclick=e=>lock(e.currentTarget);
+$("addKey").onclick=e=>addKey(e.currentTarget);
+$("addModel").onclick=e=>addModel(e.currentTarget);
