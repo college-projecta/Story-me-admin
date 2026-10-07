@@ -20,13 +20,20 @@ async function load(){
 }
 function selectProvider(id,button){selected=id;render();const active=document.querySelector('[data-provider="'+CSS.escape(id)+'"]');flash(active||button);message("")}
 function render(){
- $("providers").innerHTML=providers.length?providers.map(p=>'<button class="provider '+(p.id===selected?"selected":"")+'" data-provider="'+escapeHtml(p.id)+'"><b>'+escapeHtml(p.name)+'</b><span>'+p.keyCount+' active keys · '+p.models.length+' models</span></button>').join(""):"<p class='muted'>No providers configured.</p>";
+ $("providers").innerHTML=providers.length?providers.map(p=>'<div class="provider-row"><button class="provider '+(p.id===selected?"selected":"")+'" data-provider="'+escapeHtml(p.id)+'"><b>'+escapeHtml(p.name)+'</b><span>'+p.keyCount+' active keys · '+p.models.length+' models</span></button><button class="provider-toggle '+(p.enabled?"":"off")+'" data-toggle-provider="'+escapeHtml(p.id)+'">'+(p.enabled?"Enabled":"Disabled")+'</button></div>').join(""):"<p class='muted'>No providers configured.</p>";
  document.querySelectorAll("[data-provider]").forEach(b=>b.onclick=()=>selectProvider(b.dataset.provider,b));
+ document.querySelectorAll("[data-toggle-provider]").forEach(b=>b.onclick=()=>toggleProvider(b.dataset.toggleProvider,b));
  if(!selected&&providers[0])selected=providers[0].id;const p=providers.find(x=>x.id===selected);if(!p)return;
  $("providerPanel").hidden=false;$("providerTitle").textContent=p.name;
  $("keys").innerHTML=p.keys?.length?p.keys.map(k=>'<div class="keyrow"><div><b>'+escapeHtml(k.label||"Admin key")+'</b><div class="pill">ID '+escapeHtml(k.id.slice(0,8))+'… · priority '+k.priority+'</div></div><div class="row"><button class="ghost update-key" data-id="'+escapeHtml(k.id)+'">Update</button><button class="danger disable-key" data-id="'+escapeHtml(k.id)+'">Disable</button></div></div>').join(""):"<p class='muted'>No active keys.</p>";
  document.querySelectorAll(".update-key").forEach(b=>b.onclick=()=>updateKey(b.dataset.id,b));document.querySelectorAll(".disable-key").forEach(b=>b.onclick=()=>removeKey(b.dataset.id,b));
  $("models").innerHTML=p.models?.length?p.models.map(m=>"<span>"+escapeHtml(m)+"</span>").join(""):"<span>No models configured.</span>";
+}
+async function toggleProvider(id,button){
+ const provider=providers.find(p=>p.id===id);if(!provider)return;flash(button);
+ const next=!provider.enabled;button.textContent=next?"Enabling…":"Disabling…";setBusy(true);
+ try{await api("/api/admin/ai/providers",{method:"PATCH",body:JSON.stringify({provider:id,enabled:next})});await refreshProviders();message((next?"Enabled ":"Disabled ")+provider.name+".")}
+ catch(e){message(e.message,true)}finally{setBusy(false)}
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function addKey(button){flash(button);const v=$("newKey").value.trim();if(!selected){message("Select a provider first.",true);return}if(!v){message("Enter an API key first.",true);return}button.textContent="Saving…";setBusy(true);try{await api("/api/admin/ai/keys",{method:"POST",body:JSON.stringify({provider:selected,apiKey:v,label:"Admin key",priority:100})});$("newKey").value="";await refreshProviders();message("API key saved securely.")}catch(e){message(e.message,true)}finally{button.textContent="Add";setBusy(false)}}
