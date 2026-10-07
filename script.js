@@ -7,15 +7,15 @@ function message(text,error=false){$("msg").textContent=text||"";$("msg").classN
 async function api(path,opts={}){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  try{const r=await fetch(API+path,{...opts,signal:controller.signal,headers:{...(opts.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
- const d=await r.json().catch(()=>({}));if(!r.ok)throw new Error(d.error||("Request failed ("+r.status+")"));return d;
+ const d=await r.json().catch(()=>({}));if(!r.ok){if(r.status===401)throw new Error("Admin token rejected by the STORY ME backend (401). Check that this token exactly matches the current Vercel STORY_ME_ADMIN_TOKEN.");if(r.status===403)throw new Error("Admin request blocked by CORS (403). The backend must allow https://college-projecta.github.io.");throw new Error(d.error||("Request failed ("+r.status+")"))}return d;
  }catch(e){if(e?.name==="AbortError")throw new Error("Admin backend request timed out.");if(e instanceof TypeError)throw new Error("Could not reach the Admin backend. Check CORS/deployment/API availability.");throw e}finally{clearTimeout(timeout)}
 }
 async function load(){
  const button=$("loginBtn");flash(button);token=$("token").value.trim();
  if(!token){$("loginMsg").textContent="Enter your admin token.";return}
  button.textContent="Connecting…";button.disabled=true;$("loginMsg").textContent="";
- try{const d=await api("/api/admin/ai/providers",{});providers=d.providers||[];$("login").hidden=true;$("app").hidden=false;if(d.warnings?.length)message(d.warnings.join(" "));render()}
- catch(e){$("loginMsg").textContent=e.message}
+ try{const d=await api("/api/admin/ai/providers",{});providers=Array.isArray(d.providers)?d.providers:[];selected="";render();$("login").hidden=true;$("app").hidden=false;if(d.warnings?.length)message(d.warnings.join(" "))}
+ catch(e){$("loginMsg").textContent=e.message;console.error("[STORY ME ADMIN]",e)}
  finally{button.textContent="Enter Admin";button.disabled=false}
 }
 function selectProvider(id,button){selected=id;render();const active=document.querySelector('[data-provider="'+CSS.escape(id)+'"]');flash(active||button);message("")}
