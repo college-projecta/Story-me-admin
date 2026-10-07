@@ -11,12 +11,34 @@ async function api(path,opts={}){
  }catch(e){if(e?.name==="AbortError")throw new Error("Admin backend request timed out.");if(e instanceof TypeError)throw new Error("Could not reach the Admin backend. Check CORS/deployment/API availability.");throw e}finally{clearTimeout(timeout)}
 }
 async function load(){
- const button=$("loginBtn");flash(button);token=$("token").value.trim();
+ const button=$("loginBtn");
+ flash(button);
+ token=$("token").value.trim();
  if(!token){$("loginMsg").textContent="Enter your admin token.";return}
- button.textContent="Connecting…";button.disabled=true;$("loginMsg").textContent="";
- try{const d=await api("/api/admin/ai/providers",{});providers=Array.isArray(d.providers)?d.providers:[];selected="";render();$("login").hidden=true;$("app").hidden=false;if(d.warnings?.length)message(d.warnings.join(" "))}
- catch(e){$("loginMsg").textContent=e.message;console.error("[STORY ME ADMIN]",e)}
- finally{button.textContent="Enter Admin";button.disabled=false}
+ button.textContent="Connecting…";
+ button.disabled=true;
+ $("loginMsg").textContent="Checking admin access…";
+ try{
+   const d=await api("/api/admin/ai/providers",{});
+   providers=Array.isArray(d.providers)?d.providers:[];
+   selected=providers[0]?.id||"";
+   $("loginMsg").textContent="Admin access verified. Opening dashboard…";
+   $("login").hidden=true;
+   $("app").hidden=false;
+   try{
+     render();
+     if(d.warnings?.length)message(d.warnings.join(" "));
+   }catch(renderError){
+     console.error("[STORY ME ADMIN] Dashboard render failed",renderError);
+     message("Dashboard loaded, but its data could not be rendered: "+(renderError?.message||renderError),true);
+   }
+ }catch(e){
+   $("loginMsg").textContent=e?.message||"Admin login failed.";
+   console.error("[STORY ME ADMIN] Login failed",e);
+ }finally{
+   button.textContent="Enter Admin";
+   button.disabled=false;
+ }
 }
 function selectProvider(id,button){selected=id;render();const active=document.querySelector('[data-provider="'+CSS.escape(id)+'"]');flash(active||button);message("")}
 function render(){
