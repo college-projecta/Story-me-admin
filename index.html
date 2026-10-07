@@ -1,5 +1,63 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>STORY ME Admin</title><link rel="stylesheet" href="./styles.css?v=20261007-4"></head>
-<body><main id="login" class="login"><section class="card"><div class="brand">STORY ME <span>ADMIN</span></div><h1>Private Control Center</h1><p class="muted">Manage AI providers, API keys and models. Secrets are sent to the protected backend and are never displayed after saving.</p><input id="token" type="password" placeholder="Admin token" autocomplete="off"><button id="loginBtn">Enter Admin</button><div id="loginMsg" class="error"></div></section></main>
-<main id="app" hidden><header><div><div class="brand">STORY ME <span>ADMIN</span></div><h1>AI Provider Control</h1><p class="muted">Provider, key and model management without redeploying the admin frontend.</p></div><button id="lockBtn" class="ghost">Lock</button></header><section class="grid"><aside class="card"><h2>Providers</h2><p class="muted">Select a provider.</p><div id="providers"></div></aside><section class="card"><h2 id="providerTitle">Select provider</h2><div id="providerPanel" hidden><h3>API Keys</h3><p class="muted">Keys are encrypted server-side. Only safe metadata is returned to this page.</p><div class="row"><input id="newKey" type="password" placeholder="Paste new API key"><button id="addKey">Add</button></div><div id="keys"></div><h3>Models</h3><div class="row"><input id="newModel" placeholder="Model ID"><button id="addModel">Save</button></div><div id="models" class="models"></div></div></section></section><p id="msg" class="muted"></p></main>
-<script src="./script.js?v=20261007-4"></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>STORY ME — Admin Control Center</title>
+<link rel="stylesheet" href="./styles.css?v=20261007-5">
+</head>
+<body>
+<main id="login" class="login">
+<section class="card login-card">
+<div class="brand">STORY ME <span>ADMIN</span></div>
+<h1>Private Control Center</h1>
+<p class="muted">Secure operational access to the STORY ME platform.</p>
+<input id="token" type="password" placeholder="Admin token" autocomplete="off">
+<button id="loginBtn">Enter Admin</button>
+<div id="loginMsg" class="status-text"></div>
+</section>
+</main>
+
+<main id="app" hidden>
+<div class="shell">
+<aside class="sidebar">
+<div class="side-brand"><div class="brand">STORY ME <span>ADMIN</span></div><div class="side-sub">Operational Control Center</div></div>
+<nav id="nav"></nav>
+<div class="side-footer"><span class="status-dot"></span><span>Admin session active</span><button id="lockBtn" class="ghost small">Lock</button></div>
+</aside>
+
+<section class="workspace">
+<header class="topbar">
+<div><div class="eyebrow">STORY ME / CONTROL CENTER</div><h1 id="pageTitle">Overview</h1><p id="pageSubtitle" class="muted">Platform operational overview</p></div>
+<div class="top-actions"><span id="envBadge" class="badge">Production</span><span id="systemBadge" class="badge ok">API Connected</span></div>
+</header>
+
+<section id="page-overview" class="page"></section>
+
+<section id="page-ai-providers" class="page" hidden>
+<div class="section-head"><div><h2>AI Providers</h2><p class="muted">Manage provider availability and priority configuration.</p></div><button id="refreshProviders" class="ghost">Refresh</button></div>
+<div class="provider-layout"><aside class="card provider-list"><h3>Providers</h3><div id="providers"></div></aside><section class="card provider-detail"><div class="detail-title"><div><h2 id="providerTitle">Select provider</h2><p id="providerMeta" class="muted"></p></div></div><div id="providerPanel" hidden>
+<h3>API Keys</h3><p class="muted">Keys are encrypted server-side. Only safe metadata is returned.</p>
+<div class="row"><input id="newKey" type="password" placeholder="Paste new API key"><button id="addKey">Add Key</button></div><div id="keys"></div>
+<h3>Models</h3><div class="row"><input id="newModel" placeholder="Model ID"><button id="addModel">Save Model</button></div><div id="models" class="models"></div>
+</div><div id="providerEmpty" class="empty">Select a provider to manage it.</div></section></div>
+</section>
+
+<section id="page-api-keys" class="page" hidden><div class="section-head"><div><h2>API Keys</h2><p class="muted">Safe metadata view across all configured providers.</p></div></div><div id="allKeys" class="card table-card"></div></section>
+<section id="page-models" class="page" hidden><div class="section-head"><div><h2>Models</h2><p class="muted">Enabled models currently available to the AI configuration.</p></div></div><div id="allModels" class="card table-card"></div></section>
+
+<section id="page-task-routing" class="page" hidden>
+<div class="section-head"><div><h2>Task Routing</h2><p class="muted">Configure primary and fallback providers for STORY ME tasks.</p></div><button id="refreshRoutes" class="ghost">Refresh</button></div>
+<div id="routes" class="route-grid"></div>
+</section>
+
+<section id="page-ai-health" class="page" hidden><div class="section-head"><div><h2>AI Health</h2><p class="muted">Live provider configuration status. Runtime health metrics will appear when the health telemetry API is connected.</p></div></div><div id="health" class="health-grid"></div></section>
+
+<section id="page-module" class="page" hidden></section>
+<p id="msg" class="global-msg muted"></p>
+</section>
+</div>
+</main>
+<script src="./script.js?v=20261007-5"></script>
+</body>
+</html>
