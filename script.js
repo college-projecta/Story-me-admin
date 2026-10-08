@@ -1,5 +1,5 @@
 const API="https://story-me-me-fd43.vercel.app";
-let token="",providers=[],selected="",routes=[],currentPage="overview";
+let token="",providers=[],selected="",routes=[],currentPage="overview",health=null;
 
 const $=id=>document.getElementById(id);
 const navItems=[
@@ -99,23 +99,39 @@ function renderOverview(){
  const active=providers.filter(p=>p.enabled).length;
  const keys=providers.reduce((n,p)=>n+(p.keyCount||0),0);
  const models=providers.reduce((n,p)=>n+(p.models?.length||0),0);
- const enabledRoutes=routes.filter(r=>r.enabled!==false).length;
- $("page-overview").innerHTML='<div class="kpi-grid">'+
+ const db=health?.database?.status||"checking";
+ const router=health?.aiRouter?.status||"checking";
+ const backend=health?.backend?.status||"checking";
+ $("page-overview").innerHTML=
+ '<div class="kpi-grid">'+
  '<div class="card kpi"><div class="label">AI PROVIDERS</div><div class="value">'+providers.length+'</div><div class="sub">'+active+' enabled</div></div>'+
  '<div class="card kpi"><div class="label">ACTIVE API KEYS</div><div class="value">'+keys+'</div><div class="sub">Safe metadata only</div></div>'+
  '<div class="card kpi"><div class="label">ENABLED MODELS</div><div class="value">'+models+'</div><div class="sub">Available to configuration</div></div>'+
- '<div class="card kpi"><div class="label">TASK ROUTES</div><div class="value">'+enabledRoutes+'</div><div class="sub">'+routes.length+' configured</div></div>'+
+ '<div class="card kpi"><div class="label">TASK ROUTES</div><div class="value">'+routes.length+'</div><div class="sub">'+(health?.aiRouter?.routeCount||0)+' saved in backend</div></div>'+
  '</div>'+
  '<div class="dashboard-grid">'+
  '<section class="card card-pad"><h3>System Status</h3><div class="status-list">'+
- '<div class="status-item"><span>Admin API</span><span class="state ok">ONLINE</span></div>'+
- '<div class="status-item"><span>Supabase configuration data</span><span class="state '+(providers.length?"ok":"warn")+'">'+(providers.length?"CONNECTED":"NO DATA")+'</span></div>'+
- '<div class="status-item"><span>AI Router configuration</span><span class="state '+(routes.length?"ok":"warn")+'">'+(routes.length?"CONFIGURED":"NOT CONFIGURED")+'</span></div>'+
- '<div class="status-item"><span>Runtime health telemetry</span><span class="state warn">NOT CONNECTED</span></div>'+
+ '<div class="status-item"><span>Backend API</span><span class="state '+(backend==="online"?"ok":"warn")+'">'+escapeHtml(backend.toUpperCase())+'</span></div>'+
+ '<div class="status-item"><span>Database</span><span class="state '+(db==="connected"?"ok":"warn")+'">'+escapeHtml(db.toUpperCase())+'</span></div>'+
+ '<div class="status-item"><span>AI Router</span><span class="state '+(router==="configured"?"ok":"warn")+'">'+escapeHtml(router.replaceAll("_"," ").toUpperCase())+'</span></div>'+
+ '<div class="status-item"><span>Runtime telemetry</span><span class="state warn">NOT CONNECTED</span></div>'+
  '</div></section>'+
  '<section class="card card-pad"><h3>AI Provider Pool</h3><div class="status-list">'+
  providers.slice(0,8).map(p=>'<div class="status-item"><span>'+escapeHtml(p.name)+'</span><span class="state '+(p.enabled?"ok":"warn")+'">'+(p.enabled?"ENABLED":"DISABLED")+'</span></div>').join("")+
  (providers.length>8?'<div class="muted">+'+(providers.length-8)+' more providers</div>':"")+
+ '</div></section></div>'+
+ '<div class="dashboard-grid">'+
+ '<section class="card card-pad"><h3>Story Engine</h3><div class="status-list">'+
+ '<div class="status-item"><span>Stories</span><span class="state warn">CONTENT API PENDING</span></div>'+
+ '<div class="status-item"><span>Scenes</span><span class="state warn">CONTENT API PENDING</span></div>'+
+ '<div class="status-item"><span>Characters</span><span class="state warn">CONTENT API PENDING</span></div>'+
+ '<div class="status-item"><span>Users & sessions</span><span class="state warn">PLATFORM API PENDING</span></div>'+
+ '</div></section>'+
+ '<section class="card card-pad"><h3>Control Center Scope</h3><div class="module-list">'+
+ '<div class="module-item">AI configuration · live</div>'+
+ '<div class="module-item">Task routing · live</div>'+
+ '<div class="module-item">Story / Scene / Character control · next backend integration</div>'+
+ '<div class="module-item">Analytics / Logs / Audit · next backend integration</div>'+
  '</div></section></div>';
 }
 function selectProvider(id,button){
@@ -188,14 +204,14 @@ function renderHealth(){
  $("health").innerHTML=providers.map(p=>'<section class="card health-card"><h3>'+escapeHtml(p.name)+'</h3><div class="health-state">'+(p.enabled?"CONFIGURED / ENABLED":"DISABLED")+'</div><p class="muted">'+(p.keyCount||0)+' active keys · '+(p.models?.length||0)+' enabled models</p><p class="muted">Runtime latency, success rate and cooldown telemetry require the health API.</p></section>').join("")||'<div class="card card-pad"><p class="muted">No providers configured.</p></div>';
 }
 async function refreshProviders(){
- const d=await api("/api/admin/ai/providers",{});providers=Array.isArray(d.providers)?d.providers:[];routes=Array.isArray(d.routes)?d.routes:[];renderProviders();renderOverview();if(currentPage==="api-keys")renderAllKeys();if(currentPage==="models")renderAllModels();if(currentPage==="task-routing")renderRoutes();if(currentPage==="ai-health")renderHealth();if(d.warnings?.length)message(d.warnings.join(" "));
+ const [d,h]=await Promise.all([api("/api/admin/ai/providers",{}),api("/api/admin/health",{}).catch(()=>null)]);providers=Array.isArray(d.providers)?d.providers:[];routes=Array.isArray(d.routes)?d.routes:[];health=h;renderProviders();renderOverview();if(currentPage==="api-keys")renderAllKeys();if(currentPage==="models")renderAllModels();if(currentPage==="task-routing")renderRoutes();if(currentPage==="ai-health")renderHealth();if(d.warnings?.length)message(d.warnings.join(" "));
 }
 async function load(){
  const button=$("loginBtn");flash(button);token=$("token").value.trim();if(!token){$("loginMsg").textContent="Enter your admin token.";return}
  actionState(button,"Authenticating…");$("loginMsg").textContent="Authenticating against secure Admin API…";
  try{
-  const d=await api("/api/admin/ai/providers",{});
-  providers=Array.isArray(d.providers)?d.providers:[];routes=Array.isArray(d.routes)?d.routes:[];
+  const [d,h]=await Promise.all([api("/api/admin/ai/providers",{}),api("/api/admin/health",{})]);
+  providers=Array.isArray(d.providers)?d.providers:[];routes=Array.isArray(d.routes)?d.routes:[];health=h;
   $("loginMsg").textContent="Admin access verified. Opening Control Center…";
   $("login").hidden=true;$("app").hidden=false;buildNav();navigate("overview",document.querySelector('[data-page="overview"]'));
   if(d.warnings?.length)message(d.warnings.join(" "));
