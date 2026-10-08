@@ -3,7 +3,7 @@ let token="",providers=[],selected="",routes=[],currentPage="overview",health=nu
 
 const $=id=>document.getElementById(id);
 const navItems=[
- ["overview","Overview","◈","CORE"],["ai-providers","AI Providers","AI","AI"],["api-keys","API Keys","K","AI"],["models","Models","M","AI"],["task-routing","Task Routing","⇄","AI"],["ai-health","AI Health","♥","AI"],
+ ["overview","Overview","◈","CORE"],["ai-providers","AI Providers","AI","AI"],["models","Models","M","AI"],["task-routing","Task Routing","⇄","AI"],["ai-health","AI Health","♥","AI"],
  ["stories","Stories","S","CONTENT"],["scenes","Scenes","⌂","CONTENT"],["characters","Characters","C","CONTENT"],["voice","Voice","V","MEDIA"],["images","Images","I","MEDIA"],["users","Users","U","PLATFORM"],["analytics","Analytics","A","PLATFORM"],["system","System","⚙","SYSTEM"],["security","Security","◇","SYSTEM"],["logs","Logs","≡","SYSTEM"],["settings","Settings","☷","SYSTEM"]
 ];
 const pageMeta={
