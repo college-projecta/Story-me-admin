@@ -51,7 +51,7 @@ function escapeHtml(value){return String(value??"").replace(/[&<>"']/g,c=>({"&":
 async function api(path,opts={}){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  try{
-   const r=await fetch(API+path,{...opts,signal:controller.signal,headers:{...(opts.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json","Cache-Control":"no-cache"}});
+   const r=await fetch(API+path,{...opts,signal:controller.signal,headers:{...(opts.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
    const d=await r.json().catch(()=>({}));
    if(!r.ok){
      if(r.status===401)throw new Error("Admin token rejected by the STORY ME backend (401).");
