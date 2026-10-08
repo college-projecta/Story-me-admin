@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>STORY ME — Admin Control Center</title>
-<link rel="stylesheet" href="./styles.css?v=20261008-3">
+<link rel="stylesheet" href="./styles.css?v=20261008-4">
 </head>
 <body>
 <main id="login" class="login">
@@ -35,29 +35,63 @@
 <section id="page-overview" class="page"></section>
 
 <section id="page-ai-providers" class="page" hidden>
-<div class="section-head"><div><h2>AI Providers</h2><p class="muted">Manage provider availability and priority configuration.</p></div><button id="refreshProviders" class="ghost">Refresh</button></div>
-<div class="provider-layout"><aside class="card provider-list"><h3>Providers</h3><div id="providers"></div></aside><section class="card provider-detail"><div class="detail-title"><div><h2 id="providerTitle">Select provider</h2><p id="providerMeta" class="muted"></p></div></div><div id="providerPanel" hidden>
-<h3>API Keys</h3><p class="muted">Keys are encrypted server-side. Only safe metadata is returned.</p>
-<div class="row"><input id="newKey" type="password" placeholder="Paste new API key"><button id="addKey">Add Key</button></div><div id="keys"></div>
-<h3>Models</h3><div class="row"><input id="newModel" placeholder="Model ID"><button id="addModel">Save Model</button></div><div id="models" class="models"></div>
-</div><div id="providerEmpty" class="empty">Select a provider to manage it.</div></section></div>
+<div class="section-head">
+<div><div class="eyebrow">AI CONFIGURATION</div><h2>AI Providers</h2><p class="muted">Only providers with a saved API key appear here.</p></div>
+<div class="head-actions"><button id="addProviderBtn" class="primary">＋ Add API Key</button><button id="refreshProviders" class="ghost">Refresh</button></div>
+</div>
+<div class="provider-layout"><aside class="card provider-list"><div class="list-heading"><div><h3>Configured Providers</h3><p class="muted">Secure key-backed pool</p></div><span id="providerCountBadge" class="count-badge">0</span></div><div id="providers"></div></aside><section class="card provider-detail"><div class="detail-title"><div><div class="eyebrow">PROVIDER DETAILS</div><h2 id="providerTitle">No provider configured</h2><p id="providerMeta" class="muted">Add your first AI provider to start building the pool.</p></div></div><div id="providerPanel" hidden></div><div id="providerEmpty" class="empty-state"><div class="empty-icon">✦</div><h3>Your AI pool is empty</h3><p>Add a provider, API key and model in one step. The key is encrypted on the backend and never returned to this dashboard.</p><button id="emptyAddProvider" class="primary">Add your first API Key</button></div></section></div>
 </section>
 
-<section id="page-api-keys" class="page" hidden><div class="section-head"><div><h2>API Keys</h2><p class="muted">Safe metadata view across all configured providers.</p></div></div><div id="allKeys" class="card table-card"></div></section>
-<section id="page-models" class="page" hidden><div class="section-head"><div><h2>Models</h2><p class="muted">Enabled models currently available to the AI configuration.</p></div></div><div id="allModels" class="card table-card"></div></section>
+<section id="page-api-keys" class="page" hidden>
+<div class="section-head"><div><div class="eyebrow">SECURE CREDENTIALS</div><h2>API Keys</h2><p class="muted">Manage encrypted provider credentials without exposing secret values.</p></div><button id="addKeyPageBtn" class="primary">＋ Add API Key</button></div>
+<div id="allKeys" class="card table-card"></div>
+</section>
+
+<section id="page-models" class="page" hidden><div class="section-head"><div><div class="eyebrow">MODEL POOL</div><h2>Models</h2><p class="muted">Models attached to your configured AI providers.</p></div><button id="addModelPageBtn" class="ghost">Manage via provider</button></div><div id="allModels" class="card table-card"></div></section>
 
 <section id="page-task-routing" class="page" hidden>
-<div class="section-head"><div><h2>Task Routing</h2><p class="muted">Configure primary and fallback providers for STORY ME tasks.</p></div><button id="refreshRoutes" class="ghost">Refresh</button></div>
+<div class="section-head"><div><div class="eyebrow">ROUTER</div><h2>Task Routing</h2><p class="muted">Configure primary and fallback providers for STORY ME tasks.</p></div><button id="refreshRoutes" class="ghost">Refresh</button></div>
 <div id="routes" class="route-grid"></div>
 </section>
 
-<section id="page-ai-health" class="page" hidden><div class="section-head"><div><h2>AI Health</h2><p class="muted">Live provider configuration status. Runtime health metrics will appear when the health telemetry API is connected.</p></div></div><div id="health" class="health-grid"></div></section>
+<section id="page-ai-health" class="page" hidden><div class="section-head"><div><div class="eyebrow">OBSERVABILITY</div><h2>AI Health</h2><p class="muted">Live configuration health. Runtime telemetry appears when the health pipeline is connected.</p></div></div><div id="health" class="health-grid"></div></section>
 
 <section id="page-module" class="page" hidden></section>
 <p id="msg" class="global-msg muted"></p>
 </section>
 </div>
 </main>
-<script src="./script.js?v=20261008-3"></script>
+
+<div id="providerModal" class="modal" hidden>
+<div class="modal-backdrop" data-close-modal></div>
+<section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+<div class="modal-head"><div><div class="eyebrow">SECURE PROVIDER SETUP</div><h2 id="modalTitle">Add API Key</h2><p id="modalSubtitle" class="muted">Connect a provider, key and model.</p></div><button class="icon-btn" data-close-modal aria-label="Close">×</button></div>
+<form id="providerForm">
+<label>Provider name<input id="providerName" required maxlength="80" placeholder="e.g. Gemini, Groq, OpenAI"></label>
+<label>API key<input id="providerApiKey" type="password" required autocomplete="new-password" placeholder="Paste API key"></label>
+<label>Model name<input id="providerModel" required maxlength="160" placeholder="e.g. gemini-2.5-flash"></label>
+<p class="security-note"><span>🔐</span> Your API key is sent only to the protected Admin API and encrypted server-side before storage.</p>
+<div id="providerFormMsg" class="status-text"></div>
+<div class="modal-actions"><button type="button" class="ghost" data-close-modal>Cancel</button><button id="providerSubmit" type="submit" class="primary">Save Provider</button></div>
+</form>
+</section>
+</div>
+
+<div id="updateModal" class="modal" hidden>
+<div class="modal-backdrop" data-close-update></div>
+<section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="updateTitle">
+<div class="modal-head"><div><div class="eyebrow">PROVIDER UPDATE</div><h2 id="updateTitle">Update Provider</h2><p id="updateSubtitle" class="muted">Change the encrypted key and primary model.</p></div><button class="icon-btn" data-close-update aria-label="Close">×</button></div>
+<form id="updateForm">
+<label>Provider name<input id="updateProviderName" readonly></label>
+<label>New API key <span class="optional">(leave blank to keep current)</span><input id="updateApiKey" type="password" autocomplete="new-password" placeholder="Enter replacement key"></label>
+<label>Model name<input id="updateModel" required maxlength="160" placeholder="Model name"></label>
+<p class="security-note"><span>🛡</span> Existing secrets are never revealed. Leaving the key blank keeps the encrypted key unchanged.</p>
+<div id="updateFormMsg" class="status-text"></div>
+<div class="modal-actions"><button type="button" class="ghost" data-close-update>Cancel</button><button id="updateSubmit" type="submit" class="primary">Save Changes</button></div>
+</form>
+</section>
+</div>
+
+<script src="./script.js?v=20261008-4"></script>
 </body>
 </html>
