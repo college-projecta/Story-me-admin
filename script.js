@@ -76,7 +76,7 @@ function buildNav(){
  });
 }
 function navigate(id,button){
- flash(button);currentPage=id;
+ flash(button);currentPage=id;message("");
  document.querySelectorAll(".page").forEach(p=>p.hidden=true);
  const page=$("page-"+id)||$("page-module");page.hidden=false;
  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.toggle("active",b.dataset.page===id));
@@ -204,7 +204,16 @@ function renderHealth(){
  $("health").innerHTML=providers.map(p=>'<section class="card health-card"><h3>'+escapeHtml(p.name)+'</h3><div class="health-state">'+(p.enabled?"CONFIGURED / ENABLED":"DISABLED")+'</div><p class="muted">'+(p.keyCount||0)+' active keys · '+(p.models?.length||0)+' enabled models</p><p class="muted">Runtime latency, success rate and cooldown telemetry require the health API.</p></section>').join("")||'<div class="card card-pad"><p class="muted">No providers configured.</p></div>';
 }
 async function refreshProviders(){
- const [d,h]=await Promise.all([api("/api/admin/ai/providers",{}),api("/api/admin/health",{}).catch(()=>null)]);providers=Array.isArray(d.providers)?d.providers:[];routes=Array.isArray(d.routes)?d.routes:[];health=h;renderProviders();renderOverview();if(currentPage==="api-keys")renderAllKeys();if(currentPage==="models")renderAllModels();if(currentPage==="task-routing")renderRoutes();if(currentPage==="ai-health")renderHealth();if(d.warnings?.length)message(d.warnings.join(" "));
+ const d=await api("/api/admin/ai/providers",{});
+ providers=Array.isArray(d.providers)?d.providers:[];
+ routes=Array.isArray(d.routes)?d.routes:[];
+ try{health=await api("/api/admin/health",{});}catch(e){health=null;console.warn("[STORY ME ADMIN] health unavailable",e);}
+ renderProviders();renderOverview();
+ if(currentPage==="api-keys")renderAllKeys();
+ if(currentPage==="models")renderAllModels();
+ if(currentPage==="task-routing")renderRoutes();
+ if(currentPage==="ai-health")renderHealth();
+ if(d.warnings?.length)message(d.warnings.join(" "));
 }
 async function load(){
  const button=$("loginBtn");flash(button);token=$("token").value.trim();if(!token){$("loginMsg").textContent="Enter your admin token.";return}
